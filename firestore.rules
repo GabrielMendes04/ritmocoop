@@ -1,0 +1,103 @@
+rules_version = '2';
+
+// Regras do RitmoCoop.
+// - Só quem confirmou o e-mail consegue ler ou gravar qualquer coisa.
+// - Cada pessoa só lê e escreve a própria área (users/{uid} e users/{uid}/data).
+// - Ninguém lê a área de outra pessoa, nem o chefe.
+// - Só entra numa empresa quem tem o código dela.
+// - Uma conversa só pode ser lida pelas duas pessoas que estão nela.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Só vale quem está logado E já confirmou o e-mail pelo link.
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function me() { return request.auth.uid; }
+    function profile() { return get(/databases/$(database)/documents/users/$(me())).data; }
+    function hasProfile() { return exists(/databases/$(database)/documents/users/$(me())); }
+    function inCompany(cid) { return signedIn() && hasProfile() && profile().cid == cid; }
+    function company(cid) { return get(/databases/$(database)/documents/companies/$(cid)).data; }
+    function isMember(cid, uid) { return exists(/databases/$(database)/documents/companies/$(cid)/members/$(uid)); }
+    function inChat(cid, chat) { return inCompany(cid) && me() in chat.split('_'); }
+
+    // Perfil de cada pessoa: só a própria pessoa lê e escreve.
+    match /users/{uid} {
+      allow read: if signedIn() && me() == uid;
+
+      // Para criar o perfil é preciso um código de empresa válido.
+      // Só quem criou a empresa pode ser "chefe"; quem entra com código é "funcionario".
+      allow create: if signedIn() && me() == uid
+        && request.resource.data.keys().hasOnly(['name', 'job', 'email', 'cid', 'role', 'code', 'createdAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+        && get(/databases/$(database)/documents/codes/$(request.resource.data.code)).data.cid == request.resource.data.cid
+        && (request.resource.data.role == 'funcionario'
+            || (request.resource.data.role == 'chefe' && company(request.resource.data.cid).owner == me()));
+
+      // Pode trocar nome e cargo, mas não a empresa nem o papel.
+      allow update: if signedIn() && me() == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'job']);
+
+      // Área privada (tarefas, rotina, hábitos, anotações).
+      match /data/{doc} {
+        allow read, write: if signedIn() && me() == uid;
+      }
+    }
+
+    // Códigos de convite: qualquer pessoa logada pode conferir um código.
+    match /codes/{code} {
+      allow get: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.owner == me()
+        && company(request.resource.data.cid).owner == me();
+    }
+
+    match /companies/{cid} {
+      allow get: if inCompany(cid) || (signedIn() && resource.data.owner == me());
+      allow create: if signedIn()
+        && request.resource.data.owner == me()
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80;
+      // O chefe pode mudar o nome e a imagem da empresa (imagem pequena, guardada como texto).
+      allow update: if signedIn() && resource.data.owner == me()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'logo'])
+        && (!('logo' in request.resource.data)
+            || request.resource.data.logo == null
+            || (request.resource.data.logo is string
+                && request.resource.data.logo.size() < 300000
+                && request.resource.data.logo.matches('data:image/(png|jpeg);base64,[A-Za-z0-9+/=]+')));
+
+      // Lista de pessoas da empresa (nome, cargo, e-mail): todos da empresa veem.
+      match /members/{uid} {
+        allow read: if inCompany(cid);
+        allow create: if inCompany(cid) && me() == uid && request.resource.data.role == profile().role;
+        allow update: if inCompany(cid) && me() == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'job']);
+        allow delete: if inCompany(cid) && (me() == uid || company(cid).owner == me());
+      }
+
+      // Mensagens: conversa entre duas pessoas, id = uidA_uidB em ordem alfabética.
+      match /chats/{chat}/messages/{msg} {
+        allow read: if inChat(cid, chat);
+
+        allow create: if inChat(cid, chat)
+          && request.resource.data.from == me()
+          && request.resource.data.to != me()
+          && request.resource.data.to in chat.split('_')
+          && isMember(cid, request.resource.data.to)
+          && request.resource.data.read == false
+          && request.resource.data.text is string && request.resource.data.text.size() <= 2000
+          // Pelas mensagens só se envia texto ou anotação. Ninguém manda tarefa para outra pessoa.
+          && (request.resource.data.att == null || request.resource.data.att.kind == 'note')
+          && request.resource.data.at == request.time;
+
+        // Quem recebeu pode marcar como lida e marcar o anexo como aceito. Nada mais.
+        allow update: if inChat(cid, chat)
+          && resource.data.to == me()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'att'])
+          && (resource.data.att == null
+              || (request.resource.data.att.kind == resource.data.att.kind
+                  && request.resource.data.att.data == resource.data.att.data));
+
+        allow delete: if false;
+      }
+    }
+  }
+}
