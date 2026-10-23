@@ -1,11 +1,10 @@
-// Configuração do Firebase do RitmoCoop.
-// Troque os valores abaixo pelos do seu projeto (Firebase > Configurações do projeto > Seus apps > Web).
+// Configuração do Firebase do RitmoCoop (projeto ritmocoop).
 // Esta chave não é secreta: quem protege os dados são as regras do Firestore (firestore.rules).
 window.RITMOCOOP_FIREBASE = {
-  apiKey: "COLE_AQUI_A_API_KEY",
-  authDomain: "SEU-PROJETO.firebaseapp.com",
-  projectId: "SEU-PROJETO",
-  storageBucket: "SEU-PROJETO.firebasestorage.app",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000000000"
+  apiKey: "AIzaSyDRm7lstShAMJDKZaLiIOT6sqF1X0bB81A",
+  authDomain: "ritmocoop.firebaseapp.com",
+  projectId: "ritmocoop",
+  storageBucket: "ritmocoop.firebasestorage.app",
+  messagingSenderId: "765129454292",
+  appId: "1:765129454292:web:59d464ed0a60210b814141"
 };

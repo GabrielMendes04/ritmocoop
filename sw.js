@@ -1,5 +1,5 @@
 // RitmoCoop – service worker: deixa o app abrir mesmo sem internet.
-const CACHE = 'ritmocoop-v1';
+const CACHE = 'ritmocoop-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './firebase-config.js', './icons/icon-192.png', './icons/icon-512.png', './icons/favicon.svg'];
 // Fontes e bibliotecas do Firebase podem ficar em cache.
 // O banco de dados e o login (firestore/googleapis) nunca passam pelo cache.
