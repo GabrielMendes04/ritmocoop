@@ -16,6 +16,7 @@ Cada pessoa da empresa cria a própria conta, com e-mail e senha, e confirma o e
 1. Entre em https://console.firebase.google.com e clique em **Adicionar projeto**. Nome: `ritmocoop`. Pode desligar o Google Analytics.
    - Use um projeto **novo**, separado do Ritmo, para as contas dos dois apps não se misturarem.
 2. Menu **Criação > Authentication > Vamos começar**. Em **Método de login**, escolha **E-mail/senha**, ative a primeira chave e salve.
+   - Depois clique em **Adicionar novo fornecedor > Google**, ative, escolha o e-mail de suporte e salve. Assim dá para entrar também com a conta Google.
 3. Menu **Criação > Firestore Database > Criar banco de dados**.
    - Local: `southamerica-east1 (São Paulo)`.
    - Modo: **produção**.
